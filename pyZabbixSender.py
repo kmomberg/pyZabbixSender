@@ -273,7 +273,7 @@ class pyZabbixSender:
 #
 # results = z.iter_send()
 # for (code,data) in results:
-#   if code == 1:
+#   if code != z.RC_OK:
 #      print "Failed to send: %s" % str(data)
 #
 #
@@ -292,7 +292,7 @@ class pyZabbixSender:
 #
 # results = z.iter_send()
 # for (code,data) in results:
-#   if code == 1:
+#   if code != z.RC_OK:
 #      print "Failed to send: %s" % str(data)
-# z.clear_data
+# z.clear_data()
 #####################################
