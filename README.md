@@ -1,5 +1,5 @@
 # pyZabbixSender
-Python implementation of zabbix_sender
+Python implementation of zabbix_sender.
 
 This is a module that allows you to send data to a [Zabbix] server using Python.
 
@@ -8,7 +8,7 @@ Has been tested with Python 2.5.1 and 2.7
 Python 2.5.1 doesn't have a json module (needed to implement zabbix protocol), so you can use [simplejson] instead.
 
 Source code contains samples and comments to allows you start using it in no time. Here's a small example:
-```
+```python
 # Creating a sender object
 z = pyZabbixSender(server="zabbix-server", port=10051)
 
