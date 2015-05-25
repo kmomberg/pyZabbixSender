@@ -1,7 +1,7 @@
 # pyZabbixSender
 Python implementation of zabbix_sender.
 
-This is a module that allows you to send data to a [Zabbix] server using Python.
+This is a module that allows you to send data to a [Zabbix] server using Python. You don't need the zabbix_sender binary anymore.
 
 Has been tested with Python 2.5.1 and 2.7
 
@@ -13,24 +13,24 @@ Source code contains samples and comments to allows you start using it in no tim
 z = pyZabbixSender(server="zabbix-server", port=10051)
 
 # Adding data (without timestamp)
-z.add_data(hostname="test_host", key="test_trap_1", value="12")
-z.add_data("test_host", "test_trap_2", "2.43")
+z.addData(hostname="test_host", key="test_trap_1", value="12")
+z.addData("test_host", "test_trap_2", "2.43")
 
 # Adding data (with timestamp)
-z.add_data("test_host", "test_trap_2", "2.43", 1365787627)
+z.addData("test_host", "test_trap_2", "2.43", 1365787627)
 
 # Ready to send your data?
-results = z.send()
+results = z.sendData()
 
 # Check if everything was sent as expected
 if results[0][0] != z.RC_OK:
   print "oops!"
 
 # Clear internal data to start populating again
-z.clear_data()
+z.clearData()
 
 # Wants to send a single data point right now?
-z.send_single("test_host","test_trap","12")
+z.sendSingle("test_host","test_trap","12")
 ```
 
 There are some more options, so take a look and discover how easy is to use it ;)
