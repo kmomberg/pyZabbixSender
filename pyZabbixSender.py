@@ -20,8 +20,7 @@ import json
 class pyZabbixSender:
     '''
     This class allows you to send data to a Zabbix server, using the same
-    protocol used by the zabbix_server binary
-    distributed by Zabbix.
+    protocol used by the zabbix_server binary distributed by Zabbix.
     '''
     ZABBIX_SERVER = "127.0.0.1"
     ZABBIX_PORT   = 10051
@@ -33,6 +32,7 @@ class pyZabbixSender:
     RC_ERR_CONN      = 255  # Error talking to the server
     RC_ERR_INV_RESP  = 254  # Invalid response from server
 
+    
     def __init__(self, server=ZABBIX_SERVER, port=ZABBIX_PORT, verbose=False):
         '''
         Constructor. You can specify hostname/IP and port of your zabbix server.
@@ -43,19 +43,17 @@ class pyZabbixSender:
         self.zport   = port
         self.verbose = verbose
         self.timeout = 5         # Socket connection timeout.
-        self.data = []           # This is to store data when calling the "add_data" method.
+        self.__data = []         # This is to store data to be sent later.
 
-
-    def add_data(self, host, key, value, clock=None):
+        
+    def __str__(self):
         '''
-        Adds host, key, value and optionally clock to the internal list of
-        data to be sent later.
+        This allows you to obtain a string representation of the internal data
         '''
-        obj = self.__create_data_obj(host, key, value, clock)
-        self.data.append(obj)
-
-
-    def __create_data_obj(self, host, key, value, clock=None):
+        return str(self.__data)
+        
+        
+    def __createDataPoint(self, host, key, value, clock=None):
         '''
         Based on parameters, this creates a dictionary containing
         the same data.
@@ -69,79 +67,7 @@ class pyZabbixSender:
             obj['clock'] = clock
         return obj
 
-
-    def print_vals(self):
-        '''
-        Print stored data, that will be sent if "send" is called.
-        '''
-        for elem in self.data:
-            print str(elem)
-        print 'Count: %d' % len(self.data)
-
-
-    def send(self, packet_clock=None, max_data_per_conn=None):
-        '''
-        Sends data stored using "add_data" method, to the zabbix server.
-        Zabbix server uses the "clock" parameter in the packet to
-        associate that timestamp to all data values not containing
-        its own clock.
-        If packet_clock is specified, zabbix server will associate it to
-        all data values not containing its own clock.
-        If packet_clock is NOT specified, zabbix server will use the time
-        when it received the packet as packet clock.
-        You can use "int(round(time.time()))" to generate a current
-        timestamp "clock".
-        The parameter "max_data_per_conn" allows the user to limit the
-        number of data points sent in one single connection, as some times
-        a too big number can produce problems over slow connections.
-        Several "sends" will be automatically performed until all data is sent.
-
-        Please note that internal data is not deleted after "send" is
-        executed. You need to call "clear_data" after sending it, if you
-        want to.
-
-        Return:  a list of (return_code, msg_from_server) associated to each send.
-        '''
-        if not max_data_per_conn or max_data_per_conn > len(self.data):
-            max_data_per_conn = len(self.data)
-
-        responses = []
-        i = 0
-        while i*max_data_per_conn < len(self.data):
-
-            sender_data = {
-                "request": "sender data",
-                "data": [],
-            }
-            if packet_clock:
-                sender_data['clock'] = packet_clock
-
-            sender_data['data'] = self.data[i*max_data_per_conn:(i+1)*max_data_per_conn]
-            to_send = json.dumps(sender_data)
-
-            response = self.__send(to_send)
-            responses.append(response)
-            i += 1
-
-        return responses
-
-
-    def send_single(self, host, key, value, clock=None):
-        '''
-        Instead of sending all stored data, you can use this method to
-        send specific values, one by one.
-        '''
-        sender_data = {
-            "request": "sender data",
-            "data": [],
-        }
-
-        obj = self.__create_data_obj(host, key, value, clock)
-        sender_data['data'].append(obj)
-        to_send = json.dumps(sender_data)
-        return self.__send(to_send)
-
-
+        
     def __send(self, mydata):
         '''
         This is the method that actually sends the data to the zabbix server.
@@ -186,32 +112,144 @@ class pyZabbixSender:
         return self.RC_OK, response
 
 
-    def iter_send(self):
+    def addData(self, host, key, value, clock=None):
+        '''
+        Adds host, key, value and optionally clock to the internal list of
+        data to be sent later.
+        '''
+        obj = self.__createDataPoint(host, key, value, clock)
+        self.__data.append(obj)
+
+        
+    def clearData(self):
+        '''
+        This method deletes all data added using the method "addData",
+        so you can start adding again from zero.
+        '''
+        self.__data = []
+        
+    
+    def getData(self):
+        '''This is to get a copy of the internal data stored in the object.
+        Please note you'll NOT get the internal data, but a copy of it (to avoid
+        issues manipulating the data outside of the object).
+        '''
+        copy_of_data = []
+        for data_point in self.__data:
+            copy_of_data.append(data_point.copy())    
+        return copy_of_data
+        
+        
+    def printData(self):
+        '''
+        Print stored data, that will be sent if "sendData" is called.
+        '''
+        for elem in self.__data:
+            print str(elem)
+        print 'Count: %d' % len(self.__data)
+
+
+    def removeDataPoint(self, data_point):
+        '''
+        This method delete one data point from the internal stored data.
+        It returns True if data_point was successfuly deleted, and
+        False otherwise.
+        
+        You can use it to delete successful data transmission and keep
+        only those who failed, so you can retry or print.
+        '''
+        if data_point in self.__data:
+            self.__data.remove(data_point)
+            return True
+        
+        return False
+        
+        
+    def sendData(self, packet_clock=None, max_data_per_conn=None):
+        '''
+        Sends data stored using "addData" method, to the zabbix server.
+        Zabbix server uses the "clock" parameter in the packet to
+        associate that timestamp to all data values not containing
+        its own clock.
+        If packet_clock is specified, zabbix server will associate it to
+        all data values not containing its own clock.
+        If packet_clock is NOT specified, zabbix server will use the time
+        when it received the packet as packet clock.
+        You can use "int(round(time.time()))" to generate a current
+        timestamp compatible with "clock" or "packet_clock" params.
+        The parameter "max_data_per_conn" allows the user to limit the
+        number of data points sent in one single connection, as some times
+        a too big number can produce problems over slow connections.
+        Several "sends" will be automatically performed until all data is sent.
+
+        Please note that internal data is not deleted after "sendData" is
+        executed. You need to call "clearData" after sending it, if you
+        want to.
+
+        Return:  a list of (return_code, msg_from_server) associated to each send.
+        '''
+        if not max_data_per_conn or max_data_per_conn > len(self.__data):
+            max_data_per_conn = len(self.__data)
+
+        responses = []
+        i = 0
+        while i*max_data_per_conn < len(self.__data):
+
+            sender_data = {
+                "request": "sender data",
+                "data": [],
+            }
+            if packet_clock:
+                sender_data['clock'] = packet_clock
+
+            sender_data['data'] = self.__data[i*max_data_per_conn:(i+1)*max_data_per_conn]
+            to_send = json.dumps(sender_data)
+
+            response = self.__send(to_send)
+            responses.append(response)
+            i += 1
+
+        return responses
+
+
+    def sendDataOneByOne(self):
         '''
         You can use this method to send all stored data, one by one, to
         determine which traps are not being handled correctly by the server.
-        It returns an array of return codes and the data sent.
+        It returns an array of return codes (one for each individual "send")
+        and the data sent.
+        This is primarily intended for debugging purposes (that's why the
+        big, ugly name ;) ).
         '''
         retarray = []
-        for i in self.data:
+        for i in self.__data:
             if 'clock' in i:
-                (retcode, retstring) = self.send_single(i['host'], i['key'], i['value'], i['clock'])
+                (retcode, retstring) = self.sendSingle(i['host'], i['key'], i['value'], i['clock'])
             else:
-                (retcode, retstring) = self.send_single(i['host'], i['key'], i['value'])
+                (retcode, retstring) = self.sendSingle(i['host'], i['key'], i['value'])
 
             retarray.append((retcode, i))
         return retarray
 
 
-    def clear_data(self):
+    def sendSingle(self, host, key, value, clock=None):
         '''
-        This method deletes all data added using the method "add_data",
-        so you can start adding again from zero.
+        Instead of sending all stored data, you can use this method to
+        send specific values, right now.
         '''
-        self.data = []
+        sender_data = {
+            "request": "sender data",
+            "data": [],
+        }
+
+        obj = self.__createDataPoint(host, key, value, clock)
+        sender_data['data'].append(obj)
+        to_send = json.dumps(sender_data)
+        return self.__send(to_send)
 
 
-# ####################################
+        
+#####################################
 # --- Examples of usage ---
 #####################################
 #
@@ -224,38 +262,38 @@ class pyZabbixSender:
 
 # --- Adding data to send later ---
 # Host, Key, Value are all necessary
-# z.add_data("test_host","test_trap","12")
+# z.addData("test_host","test_trap","12")
 #
 # Optionally you can provide a specific timestamp for the sample
-# z.add_data("test_host","test_trap","13",1365787627)
+# z.addData("test_host","test_trap","13",1365787627)
 #
 # If you provide no timestamp, you still can assign one when sending, or let
 # zabbix server to put the timestamp when the message is received.
 
 # --- Printing values ---
 # Not that useful, but if you would like to see your data in tuple form:
-# z.print_vals()
+# z.printData()
 
 # --- Sending data ---
 #
 # Just sending a single data point (you don't need to call add_value for this
 # to work):
-# z.send_single("test_host","test_trap","12")
+# z.sendSingle("test_host","test_trap","12")
 #
 # Sending everything at once, with no concern about
 # individual item failure -
 #
-# result = z.send()
+# result = z.sendData()
 # for r in result:
 #     print "Result: %s -> %s" % (str(r[0]), r[1])
 #
 # If you're ok with the result, you can delete the data inside the sender, to
 # allow a new round of data feed/send.
-# z.clear_data()
+# z.clearData()
 #
 # If you want to specify a timestamp to all values without one, you can specify
 # the packet_clock parameter:
-# z.send(packet_clock=1365787627)
+# z.sendData(packet_clock=1365787627)
 #
 # When you're sending data over a slow connection, you may find useful the
 # possibility to send data in packets with no more than max_data_per_conn
@@ -264,14 +302,14 @@ class pyZabbixSender:
 # For example, if you want to send 4000 data points in packets containing no
 # more than 200 of them:
 #
-# results = z.send(max_data_per_conn=200)
+# results = z.sendData(max_data_per_conn=200)
 # for partial_result in results:
 #     print partial_result
 #
 # Sending every item individually so that we can capture
 # success or failure
 #
-# results = z.iter_send()
+# results = z.sendDataOneByOne()
 # for (code,data) in results:
 #   if code != z.RC_OK:
 #      print "Failed to send: %s" % str(data)
@@ -285,14 +323,17 @@ class pyZabbixSender:
 # sys.path.append("/path/to/pyZabbixSender.py")
 # from pyZabbixSender import pyZabbixSender
 #
-# z = pyZabbixSender() # Defaults to using ZABBIX_SERVER,ZABBIX_PORT
-# z.add_data("test_host","test_trap_1","12")
-# z.add_data("test_host","test_trap_2","13",1366033479)
-# z.print_vals()
+# z = pyZabbixSender() # Defaults to using ZABBIX_SERVER, ZABBIX_PORT
+# z.addData("test_host","test_trap_1","12")
+# z.addData("test_host","test_trap_2","13",1366033479)
+# 
+# Two ways of printing internal data
+# z.printData()
+# print z
 #
-# results = z.iter_send()
+# results = z.sendDataOneByOne()
 # for (code,data) in results:
 #   if code != z.RC_OK:
 #      print "Failed to send: %s" % str(data)
-# z.clear_data()
+# z.clearData()
 #####################################
