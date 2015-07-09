@@ -277,7 +277,7 @@ class pyZabbixSender:
         None
 
         #####Return:
-        It returns an array of return codes (one for each individual "send") and the data sent: [[code\_1, data\_point\_1], [code\_2, data\_point\_2]]
+        It returns an array of return codes (one for each individual "send") and the data sent: \[\[code\_1, data\_point\_1], \[code\_2, data\_point\_2\]\]
         '''
         retarray = []
         for i in self.__data:
