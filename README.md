@@ -1,6 +1,8 @@
 # pyZabbixSender
 Python implementation of zabbix_sender.
 
+*Take a look at the [wiki] page to get in deep details.*
+
 This is a module that allows you to send data to a [Zabbix] server using Python. You don't need the zabbix_sender binary anymore.
 
 Has been tested with Python 2.5.1 and 2.7
@@ -43,3 +45,4 @@ GNU GPLv2
 
 [Zabbix]:http://www.zabbix.com/
 [simplejson]:https://simplejson.readthedocs.org/en/latest/
+[wiki]:https://github.com/kmomberg/pyZabbixSender/wiki
