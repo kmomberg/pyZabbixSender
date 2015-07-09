@@ -35,9 +35,18 @@ class pyZabbixSender:
     
     def __init__(self, server=ZABBIX_SERVER, port=ZABBIX_PORT, verbose=False):
         '''
-        Constructor. You can specify hostname/IP and port of your zabbix server.
-        Defaults are "127.0.0.1" and 10051.
-        The "verbose" parameter is to print all sending failures to stderr.
+        #####Description:
+        This is the constructor, to obtain an object of type pyZabbixSender, linked to work with a specific server/port.
+
+        #####Parameters:
+        * **server**: [in] [string] [optional] This is the server domain name or IP. *Default value: "127.0.0.1"*
+        * **port**: [in] [integer] [optional] This is the port open in the server to receive zabbix traps. *Default value: 10051*
+        * **verbose**: [in] [boolean] [optional] This is to allow the library to write some output to stderr when finds an error. *Default value: False*
+
+        **Note: The "verbose" parameter will be revisited and could be removed/replaced in the future**
+
+        #####Return:
+        It returns a pyZabbixSender object.
         '''
         self.zserver = server
         self.zport   = port
@@ -55,8 +64,7 @@ class pyZabbixSender:
         
     def __createDataPoint(self, host, key, value, clock=None):
         '''
-        Based on parameters, this creates a dictionary containing
-        the same data.
+        Creates a dictionary using provided parameters, as needed for sending this data.
         '''
         obj = {
             'host': host,
@@ -114,8 +122,22 @@ class pyZabbixSender:
 
     def addData(self, host, key, value, clock=None):
         '''
-        Adds host, key, value and optionally clock to the internal list of
-        data to be sent later.
+        #####Description:
+        Adds host, key, value and optionally clock to the internal list of data to be sent later, when calling one of the methods to actually send the data to the server.
+
+        #####Parameters:
+        * **host**: [in] [string] [mandatory] The host which the data is associated to.
+        * **key**: [in] [string] [mandatory] The name of the trap associated to the host in the Zabbix server.
+        * **value**: [in] [any] [mandatory] The value you want to send. Please note that you need to take care about the type, as it needs to match key definition in the Zabbix server. Numeric types can be specified as number (for example: 12) or text (for example: "12").
+        * **clock**: [in] [integer] [optional] Here you can specify the Unix timestamp associated to your measurement. For example, you can process a log or a data file produced an hour ago, and you want to send the data with the timestamp when the data was produced, not when it was processed by you. If you don't specify this parameter, zabbix server will assign a timestamp when it receives the data.
+
+            You can create a timestamp compatible with "clock" parameter using this code:
+              int(round(time.time()))
+              
+            *Default value: None*
+
+        #####Return:
+        This method doesn't have a return.
         '''
         obj = self.__createDataPoint(host, key, value, clock)
         self.__data.append(obj)
@@ -123,16 +145,30 @@ class pyZabbixSender:
         
     def clearData(self):
         '''
-        This method deletes all data added using the method "addData",
-        so you can start adding again from zero.
+        #####Description:
+        This method removes all data from internal storage. You need to specify when it's done, as it's not automatically done after a data send operation.
+
+        #####Parameters:
+        None
+
+        #####Return:
+        None
         '''
         self.__data = []
         
     
     def getData(self):
-        '''This is to get a copy of the internal data stored in the object.
-        Please note you'll NOT get the internal data, but a copy of it (to avoid
-        issues manipulating the data outside of the object).
+        '''
+        #####Description:
+        This method is used to obtain a copy of the internal data stored in the object.
+
+        Please note you will **NOT** get the internal data object, but a copy of it, so no matter what you do with your copy, internal data will remain safe.
+
+        #####Parameters:
+        None
+
+        #####Return:
+        A copy of the internal data you added using the method *addData* (an array of dicts).
         '''
         copy_of_data = []
         for data_point in self.__data:
@@ -142,7 +178,14 @@ class pyZabbixSender:
         
     def printData(self):
         '''
-        Print stored data, that will be sent if "sendData" is called.
+        #####Description:
+        Print stored data (to stdout), so you can see what will be sent if "sendData" is called. This is useful for debugging purposes.
+
+        #####Parameters:
+        None
+
+        #####Return:
+        None
         '''
         for elem in self.__data:
             print str(elem)
@@ -151,12 +194,16 @@ class pyZabbixSender:
 
     def removeDataPoint(self, data_point):
         '''
-        This method delete one data point from the internal stored data.
-        It returns True if data_point was successfuly deleted, and
-        False otherwise.
-        
-        You can use it to delete successful data transmission and keep
-        only those who failed, so you can retry or print.
+        #####Description:
+        This method delete one data point from the internal stored data. 
+
+        It's main purpose is to narrow the internal data to keep only those failed data points (those that were not received/processed by the server) so you can identify/retry them. Data points can be obtained from *sendDataOneByOne* return, or from *getData* return.
+
+        #####Parameters:
+        * **data_point**: [in] [dict] [mandatory] This is a dictionary as returned by *sendDataOneByOne()* or *getData* methods.
+
+        #####Return:
+        It returns True if data_point was found and deleted, and False if not.
         '''
         if data_point in self.__data:
             self.__data.remove(data_point)
@@ -167,26 +214,29 @@ class pyZabbixSender:
         
     def sendData(self, packet_clock=None, max_data_per_conn=None):
         '''
-        Sends data stored using "addData" method, to the zabbix server.
-        Zabbix server uses the "clock" parameter in the packet to
-        associate that timestamp to all data values not containing
-        its own clock.
-        If packet_clock is specified, zabbix server will associate it to
-        all data values not containing its own clock.
-        If packet_clock is NOT specified, zabbix server will use the time
-        when it received the packet as packet clock.
-        You can use "int(round(time.time()))" to generate a current
-        timestamp compatible with "clock" or "packet_clock" params.
-        The parameter "max_data_per_conn" allows the user to limit the
-        number of data points sent in one single connection, as some times
-        a too big number can produce problems over slow connections.
-        Several "sends" will be automatically performed until all data is sent.
+        #####Description:
+        Sends data stored using *addData* method, to the Zabbix server.
 
-        Please note that internal data is not deleted after "sendData" is
-        executed. You need to call "clearData" after sending it, if you
-        want to.
+        #####Parameters:
+        * **packet_clock**: [in] [integer] [optional] Zabbix server uses the "clock" parameter in the packet to associate that timestamp to all data values not containing their own clock timestamp. Then:
+            * If packet_clock is specified, zabbix server will associate it to all data values not containing their own clock.
+            * If packet_clock is **NOT** specified, zabbix server will use the time when it received the packet as packet clock.
 
-        Return:  a list of (return_code, msg_from_server) associated to each send.
+         You can create a timestamp compatible with "clock" or "packet_clock" parameters using this code:
+
+              int(round(time.time()))
+         *Default value: None*
+              
+        * **max_data_per_conn**: [in] [integer] [optional] Allows the user to limit the number of data points sent in one single connection, as some times a too big number can produce problems over slow connections. 
+
+            Several "sends" will be automatically performed until all data is sent.
+
+            If omitted, all data points will be sent in one single connection. *Default value: None*
+         
+        Please note that **internal data is not deleted after *sendData* is executed**. You need to call *clearData* after sending it, if you want to remove currently stored data.
+
+        #####Return:
+        A list of *(return_code, msg_from_server)* associated to each "send" operation.
         '''
         if not max_data_per_conn or max_data_per_conn > len(self.__data):
             max_data_per_conn = len(self.__data)
@@ -214,12 +264,20 @@ class pyZabbixSender:
 
     def sendDataOneByOne(self):
         '''
-        You can use this method to send all stored data, one by one, to
-        determine which traps are not being handled correctly by the server.
-        It returns an array of return codes (one for each individual "send")
-        and the data sent.
-        This is primarily intended for debugging purposes (that's why the
-        big, ugly name ;) ).
+        #####Description:
+        You can use this method to send all stored data, one by one, to determine which traps are not being handled correctly by the server.
+
+        Using this method you'll be able to detect things like:
+        * hosts not defined in the server
+        * traps not defined in some particular host
+
+        This is primarily intended for debugging purposes.
+
+        #####Parameters:
+        None
+
+        #####Return:
+        It returns an array of return codes (one for each individual "send") and the data sent: [[code\_1, data\_point\_1], [code\_2, data\_point\_2]]
         '''
         retarray = []
         for i in self.__data:
@@ -234,8 +292,23 @@ class pyZabbixSender:
 
     def sendSingle(self, host, key, value, clock=None):
         '''
-        Instead of sending all stored data, you can use this method to
-        send specific values, right now.
+        #####Description:
+        Instead of storing data for sending later, you can use this method to send specific values right now.
+
+        #####Parameters:
+        It shares the same parameters as the *addData* method.
+        * **host**: [in] [string] [mandatory] The host which the data is associated to.
+        * **key**: [in] [string] [mandatory] The name of the trap associated to the host in the Zabbix server.
+        * **value**: [in] [any] [mandatory] The value you want to send. Please note that you need to take care about the type, as it needs to match key definition in the Zabbix server. Numeric types can be specified as number (for example: 12) or text (for example: "12").
+        * **clock**: [in] [integer] [optional] Here you can specify the Unix timestamp associated to your measurement. For example, you can process a log or a data file produced an hour ago, and you want to send the data with the timestamp when the data was produced, not when it was processed by you. If you don't specify this parameter, zabbix server will assign a timestamp when it receives the data.
+
+            You can create a timestamp compatible with "clock" parameter using this code:
+              int(round(time.time()))
+              
+            *Default value: None*
+
+        #####Return:
+        A list containing the return code and the message returned by the server.
         '''
         sender_data = {
             "request": "sender data",
