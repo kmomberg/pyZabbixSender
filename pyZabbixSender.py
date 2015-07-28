@@ -320,6 +320,28 @@ class pyZabbixSender:
         to_send = json.dumps(sender_data)
         return self.__send(to_send)
 
+    def sendSingleLikeProxy(self, host, key, value, clock=None, proxy=""):
+        '''
+        #####Description:
+        Use this method to put the data for host monitored by proxy server. This method emulates proxy protocol and data will be accepted by Zabbix server
+        even if they were send not actually from proxy.
+        The following JSON will be send: {"request":"history data","host":"Zabbix proxy","data":[{"host":"<monitored_host_name>","key":"<trapper key>","<value>"}]}
+        #####Parameters:
+        It shares the same parameters as the *addData* method and another one to specify proxy name: proxy=""
+        #####Example:
+        sendStatus = z.sendSingleLikeProxy("myhost.domain.com","trap.cp.avail","110","","MyZabbix proxy")
+
+        '''
+        sender_data = {
+            "request": "history data",
+            "host": proxy,
+            "data": [],
+        }
+
+        obj = self.__createDataPoint(host, key, value, clock)
+        sender_data['data'].append(obj)
+        to_send = json.dumps(sender_data)
+        return self.__send(to_send)
 
         
 #####################################
