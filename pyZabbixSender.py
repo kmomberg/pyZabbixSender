@@ -320,18 +320,32 @@ class pyZabbixSender:
         to_send = json.dumps(sender_data)
         return self.__send(to_send)
 
-    def sendSingleLikeProxy(self, host, key, value, clock=None, proxy=""):
+
+    def sendSingleLikeProxy(self, host, key, value, clock=None, proxy=None):
         '''
         #####Description:
         Use this method to put the data for host monitored by proxy server. This method emulates proxy protocol and data will be accepted by Zabbix server
         even if they were send not actually from proxy.
-        The following JSON will be send: {"request":"history data","host":"Zabbix proxy","data":[{"host":"<monitored_host_name>","key":"<trapper key>","<value>"}]}
+        
         #####Parameters:
-        It shares the same parameters as the *addData* method and another one to specify proxy name: proxy=""
-        #####Example:
-        sendStatus = z.sendSingleLikeProxy("myhost.domain.com","trap.cp.avail","110","","MyZabbix proxy")
+        * **host**: [in] [string] [mandatory] The host which the data is associated to.
+        * **key**: [in] [string] [mandatory] The name of the trap associated to the host in the Zabbix server.
+        * **value**: [in] [any] [mandatory] The value you want to send. Please note that you need to take care about the type, as it needs to match key definition in the Zabbix server. Numeric types can be specified as number (for example: 12) or text (for example: "12").
+        * **clock**: [in] [integer] [optional] Here you can specify the Unix timestamp associated to your measurement. For example, you can process a log or a data file produced an hour ago, and you want to send the data with the timestamp when the data was produced, not when it was processed by you. If you don't specify this parameter, zabbix server will assign a timestamp when it receives the data.
 
+            You can create a timestamp compatible with "clock" parameter using this code:
+              int(round(time.time()))
+              
+            *Default value: None*
+        * **proxy**: [in] [string] [optional] The name of the proxy to be recognized by the Zabbix server. If proxy is not specified, a normal "sendSingle" operation will be performed. *Default value: None*
+        
+        #####Return:
+        A list containing the return code and the message returned by the server.
         '''
+        # Proxy was not specified, so we'll do a "normal" sendSingle operation
+        if proxy is None:
+            return sendSingle(host, key, value, clock)
+            
         sender_data = {
             "request": "history data",
             "host": proxy,
